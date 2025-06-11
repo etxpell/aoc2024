@@ -4,9 +4,16 @@ defmodule Aoc24 do
   """
 
   @doc """
-  Hello world.
 
   ## Examples
+  iex> Aoc24.wire_num("z00")
+  "00"
+
+  iex> Aoc24.wire_num("z01")
+  "01"
+
+  iex> Aoc24.wire_num("xor-00")
+  "00"
 
   """
 
@@ -24,6 +31,8 @@ defmodule Aoc24 do
     ys = y_inputs(inits) |> read_regs() |> regs_to_int()
     rs = xs + ys
     outputs = output_gates(gates)
+    setup_names(gates, outputs)
+
     eval(outputs)
     regs = read_regs(outputs)
 
@@ -35,6 +44,41 @@ defmodule Aoc24 do
 
   end
 
+  ## Name the wires, as good as possible
+  def setup_names(gates, _wires) do ##  when is_list(wires), do: Enum.map(wires, &setup_name/1)
+    setup_gate_names(gates)
+  end
+
+  def setup_gate_names(gates) do
+    Enum.each(gates, &setup_op_name/1)
+  end
+
+  def setup_op_name(g) do
+    case is_input_gate(g) do
+      true ->
+        numstr = wire_num(in1(g))
+        "#{op(g)}-#{numstr}" |> IO.inspect()
+        false -> :ok
+    end
+  end
+
+  #   def setup_name(wire) do
+  #   [g] = :ets.lookup(:gates, wire)
+  #   v1 = eval(in1(g))
+  #   v2 =eval(in2(g))
+  #   res = op(op(g), v1, v2)
+  #   set_val(out(g), res)
+  #   res
+  # end
+
+  def n(wire) do
+    case :ets.lookup(:names, wire) do
+      [] -> wire
+      [{_, n}] -> n
+    end
+  end
+
+  ## Check addition is correct
   def check_result(rs, res) do
     check_result(rs, res, 0)
   end
@@ -85,6 +129,17 @@ defmodule Aoc24 do
   def op(:OR, in1, in2), do: bor(in1, in2)
   def op(:XOR, in1, in2), do: bxor(in1, in2)
 
+  def wire_num(wire) do
+    IO.inspect(wire)
+    case is_output(wire) do
+      true -> String.slice(wire, 1, 2)
+      false ->
+        case String.split(wire, "-") do
+          [_, num] -> num
+          _ -> -1
+        end
+    end
+  end
 
   def output_gates(gates) do
     Enum.filter(gates, &is_output/1) |> Enum.map(&out/1) |> Enum.sort()
@@ -92,6 +147,8 @@ defmodule Aoc24 do
 
   def is_output(g) when Record.is_record(g, :gate), do: is_output(out(g))
   def is_output(out), do: String.slice(out, 0, 1) == "z"
+
+  def is_input_gate(g), do: is_input(in1(g)) and is_input(in2(g))
 
   def input_gates(inits) do
     inits |> Enum.map(fn(x) -> elem(x, 0) end) |> Enum.sort()
